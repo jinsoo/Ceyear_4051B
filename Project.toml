@@ -1,0 +1,16 @@
+name = "Ceyear_4051B"
+uuid = "7a561c8f-9552-4abd-8d46-5e99932fb3ac"
+keywords = ["GPIB", "instrument-control", "spectrum-analyzer", "test-equipment", "RF"]
+license = "MIT"
+authors = ["Taeho <virtalf@gmail.com>"]
+description = "A Julia package for controlling CEYEAR 4051B spectrum analyzers"
+version = "0.1.0"
+
+[deps]
+Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
+GPIB_rp5 = "d4359ff1-a69a-4732-ae7e-cac4f0f0ef51"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+
+[compat]
+GPIB_rp5 = "0.1.0"
+julia = "1.6"
