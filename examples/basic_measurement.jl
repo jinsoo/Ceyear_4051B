@@ -1,4 +1,3 @@
-#!/usr/bin/env julia
 #
 # basic_measurement.jl - Example usage of the Ceyear_4051B package
 #

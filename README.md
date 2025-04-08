@@ -9,6 +9,12 @@ A Julia package for controlling CEYEAR 4051B spectrum analyzers via GPIB or othe
 - Set measurement units and data formats
 - Control sweep parameters and triggering
 - Take spot measurements or continuous sweeps
+- Advanced marker functionality for peak detection and measurements
+- Configurable detector types and trace modes
+- Bandwidth control (RBW and VBW settings)
+- Reference level and attenuation management
+- Multiple trace management (up to 6 traces)
+- Trace data export to CSV with metadata
 - Full error handling and status reporting
 - Simple API with detailed documentation
 
@@ -84,11 +90,19 @@ close(sa)
 - `set_format(analyzer, data_type="ASCii")`: Set data format for readings
 - `set_trigger(analyzer, trigger="IMMediate")`: Set trigger source
 - `reset_trace(analyzer)`: Reset all trace data
+- `set_reference_level(analyzer, level)`: Set the reference level in dBm
+- `set_attenuation(analyzer, attenuation, auto=false)`: Set RF input attenuation
+- `set_detector(analyzer, detector_type="NORMAL")`: Set the detector type
+- `set_trace_mode(analyzer, mode="WRITE", trace_num=1)`: Set the trace mode
+- `set_bandwidth(analyzer, rbw=0.0, vbw=0.0, auto=true)`: Set RBW and VBW
 
-### Measurement
+### Measurement and Markers
 
 - `measure(analyzer)`: Perform a measurement and return the trace data
 - `shot(analyzer, n=10, freq=0.0)`: Take multiple readings at a specific frequency
+- `set_marker(analyzer, marker_num=1, freq=0.0, trace_num=1)`: Create/position a marker
+- `get_marker_data(analyzer, marker_num=1)`: Get frequency and amplitude from a marker
+- `save_trace_data(analyzer, filename, trace_num=1, include_header=true)`: Save trace data to CSV
 - `check_error(analyzer)`: Check for and report any errors
 
 ## Supported Units
@@ -132,7 +146,12 @@ The `set_format()` function sets the format for returned data:
 
 ## Examples
 
-See the `examples/` directory for working code examples.
+See the `examples/` directory for working code examples:
+
+- `basic_measurement.jl`: Simple connection and measurement
+- `frequency_sweep.jl`: Performing and saving frequency sweeps
+- `signal_monitoring.jl`: Monitoring a signal over time
+- `advanced_features.jl`: Using markers, multiple traces, and advanced features
 
 ## Troubleshooting
 

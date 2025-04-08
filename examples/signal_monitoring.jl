@@ -1,4 +1,3 @@
-#!/usr/bin/env julia
 #
 # signal_monitoring.jl - Example of signal monitoring with Ceyear_4051B
 #

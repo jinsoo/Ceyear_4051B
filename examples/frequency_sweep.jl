@@ -1,4 +1,3 @@
-#!/usr/bin/env julia
 #
 # frequency_sweep.jl - Example of performing frequency sweeps with Ceyear_4051B
 #

@@ -15,7 +15,9 @@ export SpectrumAnalyzer,
        check_identify, reset, clear,
        set_freq, set_sweep, set_unit, set_format,
        reset_trace, set_trigger, measure, shot,
-       check_error
+       check_error, set_reference_level, set_attenuation,
+       set_detector, set_trace_mode, set_bandwidth,
+       get_marker_data, set_marker, save_trace_data
 
 # We need the GPIB_rp5 package for communication
 using GPIB_rp5
@@ -38,6 +40,12 @@ mutable struct SpectrumAnalyzer
     center_freq::Float64
     span_freq::Float64
     points::Int
+    reference_level::Float64
+    attenuation::Int
+    rbw::Float64
+    vbw::Float64
+    detector_type::String
+    trace_mode::String
     
     """
         SpectrumAnalyzer(interface="GPIB0::18")
@@ -78,7 +86,7 @@ mutable struct SpectrumAnalyzer
         end
         
         # Create a new analyzer instance
-        analyzer = new(device, interface, 0.0, 0.0, 1001)
+        analyzer = new(device, interface, 0.0, 0.0, 1001, 0.0, 0, 0.0, 0.0, "NORMAL", "WRITE")
         
         # Initialize the device
         identify_string = check_identify(analyzer)
@@ -464,6 +472,346 @@ Close the connection to the spectrum analyzer.
 function Base.close(analyzer::SpectrumAnalyzer)
     close_device(analyzer.device)
     println("Connection to spectrum analyzer closed.")
+end
+
+"""
+    set_reference_level(analyzer, level)
+
+Set the reference level of the spectrum analyzer.
+
+# Arguments
+- `analyzer::SpectrumAnalyzer`: The spectrum analyzer connection
+- `level::Real`: Reference level in dBm
+
+# Example
+```julia
+# Set reference level to 0 dBm
+set_reference_level(sa, 0)
+```
+"""
+function set_reference_level(analyzer::SpectrumAnalyzer, level::Real)
+    analyzer.reference_level = Float64(level)
+    write(analyzer.device, ":DISPlay:WINDow:TRACe:Y:RLEVel $(level) dBm")
+    check_error(analyzer)
+end
+
+"""
+    set_attenuation(analyzer, attenuation, auto=false)
+
+Set the RF input attenuation.
+
+# Arguments
+- `analyzer::SpectrumAnalyzer`: The spectrum analyzer connection
+- `attenuation::Integer`: Attenuation value in dB (typically 0-70)
+- `auto::Bool=false`: Set to true for automatic attenuation
+
+# Example
+```julia
+# Set 20 dB attenuation
+set_attenuation(sa, 20)
+
+# Or enable automatic attenuation
+set_attenuation(sa, 0, true)
+```
+"""
+function set_attenuation(analyzer::SpectrumAnalyzer, attenuation::Integer, auto::Bool=false)
+    if auto
+        write(analyzer.device, ":SENSe:POWer:RF:ATTenuation:AUTO ON")
+    else
+        analyzer.attenuation = attenuation
+        write(analyzer.device, ":SENSe:POWer:RF:ATTenuation $(attenuation) dB")
+        write(analyzer.device, ":SENSe:POWer:RF:ATTenuation:AUTO OFF")
+    end
+    check_error(analyzer)
+end
+
+"""
+    set_detector(analyzer, detector_type="NORMAL")
+
+Set the detector type for the active trace.
+
+# Arguments
+- `analyzer::SpectrumAnalyzer`: The spectrum analyzer connection
+- `detector_type::String="NORMAL"`: Detector type, can be one of:
+  - "NORMAL": Normal detector (default)
+  - "POSitive": Positive peak detector
+  - "NEGative": Negative peak detector
+  - "SAMPle": Sample detector
+  - "AVERage": Average detector
+  - "RMS": RMS detector
+
+# Example
+```julia
+# Set to RMS detector
+set_detector(sa, "RMS")
+```
+"""
+function set_detector(analyzer::SpectrumAnalyzer, detector_type::String="NORMAL")
+    # List of valid detector types
+    valid_detectors = ["NORMAL", "POSitive", "NEGative", "SAMPle", "AVERage", "RMS"]
+    
+    # Check if detector type is valid (case-insensitive)
+    if any(uppercase(detector_type) == uppercase(d) for d in valid_detectors)
+        analyzer.detector_type = uppercase(detector_type)
+        write(analyzer.device, ":DETector:TRACe1 $(detector_type)")
+    else
+        @error "Invalid detector type: $(detector_type). Must be one of: $(join(valid_detectors, ", "))"
+    end
+    
+    check_error(analyzer)
+end
+
+"""
+    set_trace_mode(analyzer, mode="WRITE", trace_num=1)
+
+Set the trace mode for the specified trace.
+
+# Arguments
+- `analyzer::SpectrumAnalyzer`: The spectrum analyzer connection
+- `mode::String="WRITE"`: Trace mode, can be one of:
+  - "WRITE": Clear and write mode (default)
+  - "MAXHold": Maximum hold mode
+  - "MINHold": Minimum hold mode
+  - "VIEW": View mode (freezes the trace)
+  - "BLANk": Blank mode (hides the trace)
+  - "AVERage": Average mode
+- `trace_num::Integer=1`: Trace number (1-6)
+
+# Example
+```julia
+# Set trace 1 to max hold mode
+set_trace_mode(sa, "MAXHold")
+
+# Set trace 2 to average mode
+set_trace_mode(sa, "AVERage", 2)
+```
+"""
+function set_trace_mode(analyzer::SpectrumAnalyzer, mode::String="WRITE", trace_num::Integer=1)
+    # List of valid trace modes
+    valid_modes = ["WRITE", "MAXHold", "MINHold", "VIEW", "BLANk", "AVERage"]
+    
+    # Validate trace number
+    if trace_num < 1 || trace_num > 6
+        @error "Invalid trace number: $(trace_num). Must be between 1 and 6."
+        return
+    end
+    
+    # Check if mode is valid (case-insensitive)
+    if any(uppercase(mode) == uppercase(m) for m in valid_modes)
+        if trace_num == 1
+            analyzer.trace_mode = uppercase(mode)
+        end
+        write(analyzer.device, ":TRACe$(trace_num):MODE $(mode)")
+    else
+        @error "Invalid trace mode: $(mode). Must be one of: $(join(valid_modes, ", "))"
+    end
+    
+    check_error(analyzer)
+end
+
+"""
+    set_bandwidth(analyzer, rbw=0.0, vbw=0.0, auto=true)
+
+Set the resolution bandwidth (RBW) and video bandwidth (VBW).
+
+# Arguments
+- `analyzer::SpectrumAnalyzer`: The spectrum analyzer connection
+- `rbw::Real=0.0`: Resolution bandwidth in Hz (0.0 for auto)
+- `vbw::Real=0.0`: Video bandwidth in Hz (0.0 for auto)
+- `auto::Bool=true`: Whether to use automatic bandwidth settings
+
+# Example
+```julia
+# Set RBW to 100 kHz and VBW to 10 kHz
+set_bandwidth(sa, 100e3, 10e3, false)
+
+# Use automatic bandwidth settings
+set_bandwidth(sa)
+```
+"""
+function set_bandwidth(analyzer::SpectrumAnalyzer, rbw::Real=0.0, vbw::Real=0.0, auto::Bool=true)
+    if auto
+        write(analyzer.device, ":BANDwidth:RESolution:AUTO ON")
+        write(analyzer.device, ":BANDwidth:VIDeo:AUTO ON")
+        
+        # Read current values to update the struct
+        response = query(analyzer.device, ":BANDwidth:RESolution?")
+        analyzer.rbw = parse(Float64, response)
+        
+        response = query(analyzer.device, ":BANDwidth:VIDeo?")
+        analyzer.vbw = parse(Float64, response)
+    else
+        if rbw > 0.0
+            analyzer.rbw = rbw
+            write(analyzer.device, ":BANDwidth:RESolution $(rbw) Hz")
+            write(analyzer.device, ":BANDwidth:RESolution:AUTO OFF")
+        end
+        
+        if vbw > 0.0
+            analyzer.vbw = vbw
+            write(analyzer.device, ":BANDwidth:VIDeo $(vbw) Hz")
+            write(analyzer.device, ":BANDwidth:VIDeo:AUTO OFF")
+        end
+    end
+    
+    check_error(analyzer)
+end
+
+"""
+    set_marker(analyzer, marker_num=1, freq=0.0, trace_num=1)
+
+Create or move a marker to a specific frequency.
+
+# Arguments
+- `analyzer::SpectrumAnalyzer`: The spectrum analyzer connection
+- `marker_num::Integer=1`: Marker number (1-12)
+- `freq::Real=0.0`: Frequency in GHz (0.0 for current center frequency)
+- `trace_num::Integer=1`: Trace number to place the marker on (1-6)
+
+# Example
+```julia
+# Place marker 1 at 2.45 GHz on trace 1
+set_marker(sa, 1, 2.45)
+```
+"""
+function set_marker(analyzer::SpectrumAnalyzer, marker_num::Integer=1, freq::Real=0.0, trace_num::Integer=1)
+    # Validate marker number
+    if marker_num < 1 || marker_num > 12
+        @error "Invalid marker number: $(marker_num). Must be between 1 and 12."
+        return
+    end
+    
+    # Validate trace number
+    if trace_num < 1 || trace_num > 6
+        @error "Invalid trace number: $(trace_num). Must be between 1 and 6."
+        return
+    end
+    
+    # Activate the marker
+    write(analyzer.device, ":CALCulate:MARKer$(marker_num):STATe ON")
+    
+    # Set the marker to normal mode (not delta)
+    write(analyzer.device, ":CALCulate:MARKer$(marker_num):MODE POSition")
+    
+    # Assign marker to the specified trace
+    write(analyzer.device, ":CALCulate:MARKer$(marker_num):TRACe $(trace_num)")
+    
+    # Position the marker
+    if freq <= 0.0
+        # Use center frequency if none specified
+        write(analyzer.device, ":CALCulate:MARKer$(marker_num):X:CENTer")
+    else
+        write(analyzer.device, ":CALCulate:MARKer$(marker_num):X $(freq) GHz")
+    end
+    
+    check_error(analyzer)
+end
+
+"""
+    get_marker_data(analyzer, marker_num=1)
+
+Get the frequency and amplitude data from a marker.
+
+# Arguments
+- `analyzer::SpectrumAnalyzer`: The spectrum analyzer connection
+- `marker_num::Integer=1`: Marker number (1-12)
+
+# Returns
+- `Tuple{Float64, Float64}`: Frequency (Hz) and amplitude values
+
+# Example
+```julia
+# Get data from marker 1
+freq, ampl = get_marker_data(sa)
+printf("Signal at %.3f MHz: %.2f dBm", freq/1e6, ampl)
+```
+"""
+function get_marker_data(analyzer::SpectrumAnalyzer, marker_num::Integer=1)
+    # Validate marker number
+    if marker_num < 1 || marker_num > 12
+        @error "Invalid marker number: $(marker_num). Must be between 1 and 12."
+        return (0.0, 0.0)
+    end
+    
+    # Ensure the marker is on
+    write(analyzer.device, ":CALCulate:MARKer$(marker_num):STATe ON")
+    
+    # Get the X (frequency) value
+    x_response = query(analyzer.device, ":CALCulate:MARKer$(marker_num):X?")
+    freq = parse(Float64, x_response)
+    
+    # Get the Y (amplitude) value
+    y_response = query(analyzer.device, ":CALCulate:MARKer$(marker_num):Y?")
+    ampl = parse(Float64, y_response)
+    
+    return (freq, ampl)
+end
+
+"""
+    save_trace_data(analyzer, filename, trace_num=1, include_header=true)
+
+Save trace data to a CSV file.
+
+# Arguments
+- `analyzer::SpectrumAnalyzer`: The spectrum analyzer connection
+- `filename::String`: File name to save data to
+- `trace_num::Integer=1`: Trace number to save (1-6)
+- `include_header::Bool=true`: Whether to include header information
+
+# Example
+```julia
+# Save trace 1 data to file
+save_trace_data(sa, "trace_data.csv")
+```
+"""
+function save_trace_data(analyzer::SpectrumAnalyzer, filename::String, trace_num::Integer=1, include_header::Bool=true)
+    # Validate trace number
+    if trace_num < 1 || trace_num > 6
+        @error "Invalid trace number: $(trace_num). Must be between 1 and 6."
+        return
+    end
+    
+    # Get trace data
+    write(analyzer.device, ":FORMat:TRACe:DATA ASCii")
+    response = query(analyzer.device, ":TRACe:DATA? TRACE$(trace_num)")
+    
+    # Parse the trace data
+    values = split(response, ",")
+    y_data = [parse(Float64, v) for v in values]
+    
+    # Generate frequency points
+    freq_start = analyzer.center_freq - analyzer.span_freq/2000  # GHz
+    freq_stop = analyzer.center_freq + analyzer.span_freq/2000   # GHz
+    x_data = range(freq_start, freq_stop, length=length(y_data))
+    
+    # Save to file
+    open(filename, "w") do file
+        # Write header information if requested
+        if include_header
+            write(file, "# Ceyear 4051B Spectrum Analyzer Trace Data\n")
+            write(file, "# Date: $(Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS"))\n")
+            write(file, "# Center Frequency: $(analyzer.center_freq) GHz\n")
+            write(file, "# Span: $(analyzer.span_freq) MHz\n")
+            write(file, "# RBW: $(analyzer.rbw) Hz\n")
+            write(file, "# VBW: $(analyzer.vbw) Hz\n")
+            write(file, "# Reference Level: $(analyzer.reference_level) dBm\n")
+            write(file, "# Detector: $(analyzer.detector_type)\n")
+            write(file, "# Trace Mode: $(analyzer.trace_mode)\n")
+            write(file, "# Points: $(analyzer.points)\n")
+            write(file, "#\n")
+        end
+        
+        # Write column headers
+        write(file, "Frequency (GHz),Power (dBm)\n")
+        
+        # Write data
+        for (freq, power) in zip(x_data, y_data)
+            write(file, "$(freq),$(power)\n")
+        end
+    end
+    
+    println("Trace data saved to: $(filename)")
+    return filename
 end
 
 end # module Ceyear4051B
