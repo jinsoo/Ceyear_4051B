@@ -140,7 +140,7 @@ Reset the device to its default state.
 - `analyzer::SpectrumAnalyzer`: The spectrum analyzer connection
 """
 function reset(analyzer::SpectrumAnalyzer)
-    write(analyzer.device, "*RST")
+    GPIB_rp5.write(analyzer.device, "*RST")
     sleep(0.5)  # Add a small delay to let the device reset
 end
 
@@ -153,7 +153,7 @@ Clear the device status and error queue.
 - `analyzer::SpectrumAnalyzer`: The spectrum analyzer connection
 """
 function clear(analyzer::SpectrumAnalyzer)
-    write(analyzer.device, "*CLS")
+    GPIB_rp5.write(analyzer.device, "*CLS")
 end
 
 """
@@ -178,8 +178,8 @@ function set_freq(analyzer::SpectrumAnalyzer, center_freq::Real, span_freq::Real
     analyzer.span_freq = Float64(span_freq)
     
     # Set center frequency and span
-    write(analyzer.device, ":FREQUENCY:CENTER $(center_freq) GHz")
-    write(analyzer.device, ":FREQUENCY:SPAN $(span_freq) MHz")
+    GPIB_rp5.write(analyzer.device, ":FREQUENCY:CENTER $(center_freq) GHz")
+    GPIB_rp5.write(analyzer.device, ":FREQUENCY:SPAN $(span_freq) MHz")
     
     # Check for errors
     check_error(analyzer)
@@ -206,8 +206,8 @@ function set_sweep(analyzer::SpectrumAnalyzer, sweep_type::String="sweep", point
     analyzer.points = points
     
     # Set sweep type and number of points
-    write(analyzer.device, ":SWEep:TYPE $(sweep_type)")
-    write(analyzer.device, ":SWEep:POINts $(points)")
+    GPIB_rp5.write(analyzer.device, ":SWEep:TYPE $(sweep_type)")
+    GPIB_rp5.write(analyzer.device, ":SWEep:POINts $(points)")
     
     # Check for errors
     check_error(analyzer)
@@ -247,7 +247,7 @@ function set_unit(analyzer::SpectrumAnalyzer, unit::String="dBm")
     
     # Check if unit is valid (case-insensitive)
     if any(uppercase(unit) == uppercase(u) for u in valid_units)
-        write(analyzer.device, ":UNIT:POWER $(unit)")
+        GPIB_rp5.write(analyzer.device, ":UNIT:POWER $(unit)")
     else
         @error "Invalid unit: $(unit). Must be one of: $(join(valid_units, ", "))"
     end
@@ -281,7 +281,7 @@ function set_format(analyzer::SpectrumAnalyzer, data_type::String="ASCii")
     
     # Check if format is valid (case-insensitive)
     if any(uppercase(data_type) == uppercase(f) for f in valid_formats)
-        write(analyzer.device, ":FORMAT:TRACE $(data_type)")
+        GPIB_rp5.write(analyzer.device, ":FORMAT:TRACE $(data_type)")
     else
         @error "Invalid format: $(data_type). Must be one of: $(join(valid_formats, ", "))"
     end
@@ -299,7 +299,7 @@ Reset all trace data.
 - `analyzer::SpectrumAnalyzer`: The spectrum analyzer connection
 """
 function reset_trace(analyzer::SpectrumAnalyzer)
-    write(analyzer.device, ":TRACE:PRESET:ALL")
+    GPIB_rp5.write(analyzer.device, ":TRACE:PRESET:ALL")
     check_error(analyzer)
 end
 
@@ -334,7 +334,7 @@ function set_trigger(analyzer::SpectrumAnalyzer, trigger::String="IMMediate")
     
     # Check if trigger is valid (case-insensitive)
     if any(uppercase(trigger) == uppercase(t) for t in valid_triggers)
-        write(analyzer.device, ":TRIGger:SOURce $(trigger)")
+        GPIB_rp5.write(analyzer.device, ":TRIGger:SOURce $(trigger)")
     else
         @error "Invalid trigger: $(trigger). Must be one of: $(join(valid_triggers, ", "))"
     end
@@ -361,17 +361,17 @@ This function requires further adaptation for binary data formats.
 """
 function measure(analyzer::SpectrumAnalyzer)
     # Set up for measurement
-    write(analyzer.device, "*SRE 32")
-    write(analyzer.device, "*ESE 1")
+    GPIB_rp5.write(analyzer.device, "*SRE 32")
+    GPIB_rp5.write(analyzer.device, "*ESE 1")
     
     # Perform the measurement
-    write(analyzer.device, ":INIT")
-    query(analyzer.device, "*OPC?")
+    GPIB_rp5.write(analyzer.device, ":INIT")
+    GPIB_rp5.query(analyzer.device, "*OPC?")
     
     # Read the results
     # Note: This implementation is simplified and may need adaptation
     # depending on the data format set with set_format()
-    response = query(analyzer.device, ":TRACE:DATA? TRACE1")
+    response = GPIB_rp5.query(analyzer.device, ":TRACE:DATA? TRACE1")
     
     # For ASCII format, split the comma-separated values
     values = split(response, ",")
@@ -404,7 +404,7 @@ function check_error(analyzer::SpectrumAnalyzer)
     if !contains(error_msg, "+0")
         println("Error: $error_msg")
         # Clear the error queue
-        write(analyzer.device, "*CLS")
+        GPIB_rp5.write(analyzer.device, "*CLS")
         return true
     end
     
@@ -441,15 +441,15 @@ function shot(analyzer::SpectrumAnalyzer, n::Integer=10, freq::Real=0.0)
     data = zeros(Float64, n)
     
     # Position the marker at the specified frequency
-    write(analyzer.device, ":CALC:MARKER:X:POSITION $(measurement_freq)")
+    GPIB_rp5.write(analyzer.device, ":CALC:MARKER:X:POSITION $(measurement_freq)")
     
     # Take n measurements
     for i in 1:n
         # Trigger a measurement
-        write(analyzer.device, "*TRG")
+        GPIB_rp5.write(analyzer.device, "*TRG")
         
         # Read the marker value
-        response = query(analyzer.device, ":CALC:MARK:Y?")
+        response = GPIB_rp5.query(analyzer.device, ":CALC:MARK:Y?")
         
         # Remove trailing newline and convert to float
         data[i] = parse(Float64, rstrip(response))
@@ -491,7 +491,7 @@ set_reference_level(sa, 0)
 """
 function set_reference_level(analyzer::SpectrumAnalyzer, level::Real)
     analyzer.reference_level = Float64(level)
-    write(analyzer.device, ":DISPlay:WINDow:TRACe:Y:RLEVel $(level) dBm")
+    GPIB_rp5.write(analyzer.device, ":DISPlay:WINDow:TRACe:Y:RLEVel $(level) dBm")
     check_error(analyzer)
 end
 
@@ -516,11 +516,11 @@ set_attenuation(sa, 0, true)
 """
 function set_attenuation(analyzer::SpectrumAnalyzer, attenuation::Integer, auto::Bool=false)
     if auto
-        write(analyzer.device, ":SENSe:POWer:RF:ATTenuation:AUTO ON")
+        GPIB_rp5.write(analyzer.device, ":SENSe:POWer:RF:ATTenuation:AUTO ON")
     else
         analyzer.attenuation = attenuation
-        write(analyzer.device, ":SENSe:POWer:RF:ATTenuation $(attenuation) dB")
-        write(analyzer.device, ":SENSe:POWer:RF:ATTenuation:AUTO OFF")
+        GPIB_rp5.write(analyzer.device, ":SENSe:POWer:RF:ATTenuation $(attenuation) dB")
+        GPIB_rp5.write(analyzer.device, ":SENSe:POWer:RF:ATTenuation:AUTO OFF")
     end
     check_error(analyzer)
 end
@@ -553,7 +553,7 @@ function set_detector(analyzer::SpectrumAnalyzer, detector_type::String="NORMAL"
     # Check if detector type is valid (case-insensitive)
     if any(uppercase(detector_type) == uppercase(d) for d in valid_detectors)
         analyzer.detector_type = uppercase(detector_type)
-        write(analyzer.device, ":DETector:TRACe1 $(detector_type)")
+        GPIB_rp5.write(analyzer.device, ":DETector:TRACe1 $(detector_type)")
     else
         @error "Invalid detector type: $(detector_type). Must be one of: $(join(valid_detectors, ", "))"
     end
@@ -601,7 +601,7 @@ function set_trace_mode(analyzer::SpectrumAnalyzer, mode::String="WRITE", trace_
         if trace_num == 1
             analyzer.trace_mode = uppercase(mode)
         end
-        write(analyzer.device, ":TRACe$(trace_num):MODE $(mode)")
+        GPIB_rp5.write(analyzer.device, ":TRACe$(trace_num):MODE $(mode)")
     else
         @error "Invalid trace mode: $(mode). Must be one of: $(join(valid_modes, ", "))"
     end
@@ -631,26 +631,26 @@ set_bandwidth(sa)
 """
 function set_bandwidth(analyzer::SpectrumAnalyzer, rbw::Real=0.0, vbw::Real=0.0, auto::Bool=true)
     if auto
-        write(analyzer.device, ":BANDwidth:RESolution:AUTO ON")
-        write(analyzer.device, ":BANDwidth:VIDeo:AUTO ON")
+        GPIB_rp5.write(analyzer.device, ":BANDwidth:RESolution:AUTO ON")
+        GPIB_rp5.write(analyzer.device, ":BANDwidth:VIDeo:AUTO ON")
         
         # Read current values to update the struct
-        response = query(analyzer.device, ":BANDwidth:RESolution?")
+        response = GPIB_rp5.query(analyzer.device, ":BANDwidth:RESolution?")
         analyzer.rbw = parse(Float64, response)
         
-        response = query(analyzer.device, ":BANDwidth:VIDeo?")
+        response = GPIB_rp5.query(analyzer.device, ":BANDwidth:VIDeo?")
         analyzer.vbw = parse(Float64, response)
     else
         if rbw > 0.0
             analyzer.rbw = rbw
-            write(analyzer.device, ":BANDwidth:RESolution $(rbw) Hz")
-            write(analyzer.device, ":BANDwidth:RESolution:AUTO OFF")
+            GPIB_rp5.write(analyzer.device, ":BANDwidth:RESolution $(rbw) Hz")
+            GPIB_rp5.write(analyzer.device, ":BANDwidth:RESolution:AUTO OFF")
         end
         
         if vbw > 0.0
             analyzer.vbw = vbw
-            write(analyzer.device, ":BANDwidth:VIDeo $(vbw) Hz")
-            write(analyzer.device, ":BANDwidth:VIDeo:AUTO OFF")
+            GPIB_rp5.write(analyzer.device, ":BANDwidth:VIDeo $(vbw) Hz")
+            GPIB_rp5.write(analyzer.device, ":BANDwidth:VIDeo:AUTO OFF")
         end
     end
     
@@ -688,20 +688,20 @@ function set_marker(analyzer::SpectrumAnalyzer, marker_num::Integer=1, freq::Rea
     end
     
     # Activate the marker
-    write(analyzer.device, ":CALCulate:MARKer$(marker_num):STATe ON")
+    GPIB_rp5.write(analyzer.device, ":CALCulate:MARKer$(marker_num):STATe ON")
     
     # Set the marker to normal mode (not delta)
-    write(analyzer.device, ":CALCulate:MARKer$(marker_num):MODE POSition")
+    GPIB_rp5.write(analyzer.device, ":CALCulate:MARKer$(marker_num):MODE POSition")
     
     # Assign marker to the specified trace
-    write(analyzer.device, ":CALCulate:MARKer$(marker_num):TRACe $(trace_num)")
+    GPIB_rp5.write(analyzer.device, ":CALCulate:MARKer$(marker_num):TRACe $(trace_num)")
     
     # Position the marker
     if freq <= 0.0
         # Use center frequency if none specified
-        write(analyzer.device, ":CALCulate:MARKer$(marker_num):X:CENTer")
+        GPIB_rp5.write(analyzer.device, ":CALCulate:MARKer$(marker_num):X:CENTer")
     else
-        write(analyzer.device, ":CALCulate:MARKer$(marker_num):X $(freq) GHz")
+        GPIB_rp5.write(analyzer.device, ":CALCulate:MARKer$(marker_num):X $(freq) GHz")
     end
     
     check_error(analyzer)
@@ -734,14 +734,14 @@ function get_marker_data(analyzer::SpectrumAnalyzer, marker_num::Integer=1)
     end
     
     # Ensure the marker is on
-    write(analyzer.device, ":CALCulate:MARKer$(marker_num):STATe ON")
+    GPIB_rp5.write(analyzer.device, ":CALCulate:MARKer$(marker_num):STATe ON")
     
     # Get the X (frequency) value
-    x_response = query(analyzer.device, ":CALCulate:MARKer$(marker_num):X?")
+    x_response = GPIB_rp5.query(analyzer.device, ":CALCulate:MARKer$(marker_num):X?")
     freq = parse(Float64, x_response)
     
     # Get the Y (amplitude) value
-    y_response = query(analyzer.device, ":CALCulate:MARKer$(marker_num):Y?")
+    y_response = GPIB_rp5.query(analyzer.device, ":CALCulate:MARKer$(marker_num):Y?")
     ampl = parse(Float64, y_response)
     
     return (freq, ampl)
@@ -772,7 +772,7 @@ function save_trace_data(analyzer::SpectrumAnalyzer, filename::String, trace_num
     end
     
     # Get trace data
-    write(analyzer.device, ":FORMat:TRACe:DATA ASCii")
+    GPIB_rp5.write(analyzer.device, ":FORMat:TRACe:DATA ASCii")
     response = query(analyzer.device, ":TRACe:DATA? TRACE$(trace_num)")
     
     # Parse the trace data

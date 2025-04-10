@@ -47,7 +47,7 @@ A Julia package for controlling CEYEAR 4051B spectrum analyzers via GPIB or othe
 using Ceyear_4051B
 
 # Connect to the spectrum analyzer (default: GPIB address 18)
-sa = SpectrumAnalyzer()
+sa = SpectrumAnalyzer("GPIB0::18::INSTR")
 
 # Or with a specific GPIB address
 # sa = SpectrumAnalyzer("GPIB0::20")
