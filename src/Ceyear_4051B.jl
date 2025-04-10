@@ -119,7 +119,7 @@ println("Connected to: \$idn")
 ```
 """
 function check_identify(analyzer::SpectrumAnalyzer)
-    idn = query(analyzer.device, "*IDN?")
+    idn = GPIB_rp5.query(analyzer.device, "*IDN?")
     idn_parts = split(idn, ",")
     
     if contains(idn_parts[1], "Ceyear")
@@ -399,7 +399,7 @@ Check for and print any errors from the device.
 - `Bool`: true if there was an error, false otherwise
 """
 function check_error(analyzer::SpectrumAnalyzer)
-    error_msg = query(analyzer.device, ":SYST:ERR?")
+    error_msg = GPIB_rp5.query(analyzer.device, ":SYST:ERR?")
     
     if !contains(error_msg, "+0")
         println("Error: $error_msg")
@@ -773,7 +773,7 @@ function save_trace_data(analyzer::SpectrumAnalyzer, filename::String, trace_num
     
     # Get trace data
     GPIB_rp5.write(analyzer.device, ":FORMat:TRACe:DATA ASCii")
-    response = query(analyzer.device, ":TRACe:DATA? TRACE$(trace_num)")
+    response = GPIB_rp5.query(analyzer.device, ":TRACe:DATA? TRACE$(trace_num)")
     
     # Parse the trace data
     values = split(response, ",")
