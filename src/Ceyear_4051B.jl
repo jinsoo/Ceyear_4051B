@@ -21,7 +21,7 @@ export SpectrumAnalyzer,
 
 # We need the GPIB_rp5 package for communication
 using GPIB_rp5
-
+using Base.write
 """
     SpectrumAnalyzer
 
@@ -788,25 +788,25 @@ function save_trace_data(analyzer::SpectrumAnalyzer, filename::String, trace_num
     open(filename, "w") do file
         # Write header information if requested
         if include_header
-            write(file, "# Ceyear 4051B Spectrum Analyzer Trace Data\n")
-            write(file, "# Date: $(Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS"))\n")
-            write(file, "# Center Frequency: $(analyzer.center_freq) GHz\n")
-            write(file, "# Span: $(analyzer.span_freq) MHz\n")
-            write(file, "# RBW: $(analyzer.rbw) Hz\n")
-            write(file, "# VBW: $(analyzer.vbw) Hz\n")
-            write(file, "# Reference Level: $(analyzer.reference_level) dBm\n")
-            write(file, "# Detector: $(analyzer.detector_type)\n")
-            write(file, "# Trace Mode: $(analyzer.trace_mode)\n")
-            write(file, "# Points: $(analyzer.points)\n")
-            write(file, "#\n")
+            Base.write(file, "# Ceyear 4051B Spectrum Analyzer Trace Data\n")
+            Base.write(file, "# Date: $(Dates.format(Dates.now(), "yyyy-mm-dd HH:MM:SS"))\n")
+            Base.write(file, "# Center Frequency: $(analyzer.center_freq) GHz\n")
+            Base.write(file, "# Span: $(analyzer.span_freq) MHz\n")
+            Base.write(file, "# RBW: $(analyzer.rbw) Hz\n")
+            Base.write(file, "# VBW: $(analyzer.vbw) Hz\n")
+            Base.write(file, "# Reference Level: $(analyzer.reference_level) dBm\n")
+            Base.write(file, "# Detector: $(analyzer.detector_type)\n")
+            Base.write(file, "# Trace Mode: $(analyzer.trace_mode)\n")
+            Base.write(file, "# Points: $(analyzer.points)\n")
+            Base.write(file, "#\n")
         end
         
         # Write column headers
-        write(file, "Frequency (GHz),Power (dBm)\n")
+        Base.write(file, "Frequency (GHz),Power (dBm)\n")
         
         # Write data
         for (freq, power) in zip(x_data, y_data)
-            write(file, "$(freq),$(power)\n")
+            Base.write(file, "$(freq),$(power)\n")
         end
     end
     
